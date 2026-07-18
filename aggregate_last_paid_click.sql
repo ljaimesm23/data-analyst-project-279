@@ -20,7 +20,7 @@ WITH paid_sessions AS (
 last_paid_session AS (
     SELECT
         visitor_id,
-        visit_date::date AS visit_date,
+        visit_date,
         utm_source,
         utm_medium,
         utm_campaign,
@@ -33,7 +33,7 @@ last_paid_session AS (
 
 visitors AS (
     SELECT
-        visit_date,
+        visit_date::date AS visit_date,
         utm_source,
         utm_medium,
         utm_campaign,
@@ -41,7 +41,7 @@ visitors AS (
     FROM last_paid_session
     WHERE rn = 1
     GROUP BY
-        visit_date,
+        visit_date::date,
         utm_source,
         utm_medium,
         utm_campaign
@@ -49,23 +49,22 @@ visitors AS (
 
 last_paid_click AS (
     SELECT
-        ps.visitor_id,
-        ps.visit_date::date AS visit_date,
-        ps.utm_source,
-        ps.utm_medium,
-        ps.utm_campaign,
+        s.visitor_id,
+        s.visit_date::date AS visit_date,
+        s.utm_source,
+        s.utm_medium,
+        s.utm_campaign,
         l.lead_id,
         l.amount,
-        l.closing_reason,
         l.status_id,
         ROW_NUMBER() OVER (
             PARTITION BY l.lead_id
-            ORDER BY ps.visit_date DESC
+            ORDER BY s.visit_date DESC
         ) AS rn
-    FROM paid_sessions AS ps
+    FROM paid_sessions AS s
     INNER JOIN leads AS l
-        ON ps.visitor_id = l.visitor_id
-       AND ps.visit_date <= l.created_at
+        ON s.visitor_id = l.visitor_id
+       AND s.visit_date <= l.created_at
 ),
 
 leads_data AS (
@@ -124,7 +123,7 @@ ads AS (
 )
 
 SELECT
-    v.visit_date,
+    TO_CHAR(v.visit_date, 'YYYY-MM-DD') AS visit_date,
     v.visitors_count,
     v.utm_source,
     v.utm_medium,
@@ -139,9 +138,9 @@ LEFT JOIN ads AS a
 LEFT JOIN leads_data AS l
     USING (visit_date, utm_source, utm_medium, utm_campaign)
 ORDER BY
-    visit_date,
-    visitors_count DESC,
-    utm_source,
-    utm_medium,
-    utm_campaign,
-    revenue DESC NULLS LAST;
+    v.visit_date,
+    v.visitors_count DESC,
+    v.utm_source,
+    v.utm_medium,
+    v.utm_campaign,
+    l.revenue DESC NULLS LAST;
